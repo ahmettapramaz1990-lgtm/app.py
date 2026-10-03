@@ -10,14 +10,13 @@ Do not turn a request for ideas into an unapproved build.
 
 <read_first>
 TASK.md for the objective and acceptance checks.
-ROUTE.md and EFFORT.md before selecting a model or level.
+ROUTE.md and EFFORT.md before recommending a model or effort level.
 CHECKS.md before claiming a change works.
 CONTEXT.md before loading large files or long history.
 </read_first>
 
 <model_policy>
-Use Sonnet 5.5 for bounded, well-specified implementation.
-Use Opus 5.5 for hard unresolved design or repair work.
+ROUTE.md names which model fits which kind of work.
 Switch only after evidence, not because a task sounds big.
 If this environment cannot switch models, recommend it;
 do not claim a switch happened.
