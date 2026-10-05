@@ -31,6 +31,15 @@ Use RETRY.md when a check fails; ESCALATE.md if it remains
 unresolved. Keep state and evidence visible.
 </working_rules>
 
+<team>
+For multi-step tasks, delegate to the subagents in .claude/agents:
+planner -> researcher (only if information is missing) -> builder -> reviewer.
+You route between them: on the reviewer's "tekrar dene", follow RETRY.md
+and send the work back to the step that caused the problem; on "yükselt",
+follow ESCALATE.md; on "geçti", report per <delivery>.
+Handle small, single-step tasks directly without the team.
+</team>
+
 <delivery>
 Report changed, checked, unverified and next action.
 Never write 'done' without naming a real check.
