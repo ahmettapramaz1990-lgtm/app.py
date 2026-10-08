@@ -1,6 +1,7 @@
 ---
 name: researcher
 description: Plan bir bilgi eksikliği gösterdiğinde kullan; koddan, belgelerden veya web'den gerçekleri, örnekleri ve kaynakları toplar. Dosya değiştirmez.
+model: haiku
 tools: Read, Grep, Glob, WebSearch, WebFetch
 ---
 Sorulan soruyu cevaplamak için gereken bilgiyi topla ve şu biçimde döndür:

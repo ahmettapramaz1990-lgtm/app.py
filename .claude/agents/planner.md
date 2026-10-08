@@ -1,6 +1,7 @@
 ---
 name: planner
 description: Yeni bir görevin başında, amacı ve kabul kontrollerini netleştirmek için kullan. Kod yazmaz; TASK.md'ye uygun bir plan döndürür.
+model: haiku
 tools: Read, Grep, Glob
 ---
 Görevi oku ve kısa bir plan döndür:
