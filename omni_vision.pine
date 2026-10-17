@@ -1,0 +1,145 @@
+//@version=5
+indicator("Apex Omni-Vision [Tanri Gozu]", shorttitle="OMNI-VISION", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// 1. AYARLAR
+grp_trend = "Trend & EMA Ayarlari"
+show_ema = input.bool(true, "EMA Ortalamalarini Goster", group=grp_trend)
+show_st = input.bool(true, "Supertrend Goster", group=grp_trend)
+st_mult = input.float(3.0, "Supertrend Carpani", minval=1.0, step=0.1, group=grp_trend)
+st_per = input.int(10, "Supertrend ATR Periyodu", minval=1, group=grp_trend)
+grp_sr = "Destek / Direnc (Pivot)"
+show_sr = input.bool(true, "Pivot Destek/Direnc Goster", group=grp_sr)
+pvt_len = input.int(10, "Pivot Hassasiyeti", minval=3, maxval=50, group=grp_sr)
+grp_vol = "Hacim & Sinyal"
+show_sig = input.bool(true, "AL / SAT Sinyallerini Goster", group=grp_vol)
+vol_mult = input.float(2.2, "Balina Hacim Carpani", minval=1.5, step=0.1, group=grp_vol)
+color_bar = input.bool(true, "Balina Mumlarini Sariya Boya", group=grp_vol)
+grp_dash = "Panel"
+show_dash = input.bool(true, "Paneli Goster", group=grp_dash)
+dash_pos = input.string("Sag Ust", "Panel Konumu", options=["Sag Ust", "Sag Alt", "Sol Ust", "Sol Alt"], group=grp_dash)
+
+// 2. HESAPLAMALAR
+ema9 = ta.ema(close, 9)
+ema21 = ta.ema(close, 21)
+ema50 = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+[st_val, st_dir] = ta.supertrend(st_mult, st_per)
+is_st_bull = st_dir < 0
+rsi_val = nz(ta.rsi(close, 14), 50.0)
+mfi_val = nz(ta.mfi(hlc3, 14), 50.0)
+[macd_line, sig_line, hist_line] = ta.macd(close, 12, 26, 9)
+[di_plus, di_minus, adx_raw] = ta.dmi(14, 14)
+adx_val = nz(adx_raw)
+atr_val = nz(ta.atr(14))
+vol = nz(volume)
+vol_ma = ta.sma(vol, 20)
+vol_ratio = nz(vol_ma) > 0 ? vol / vol_ma : 1.0
+is_whale = vol_ratio >= vol_mult
+is_high_v = vol_ratio >= 1.2
+htf_1d_close = request.security(syminfo.tickerid, "D", close[1], lookahead=barmerge.lookahead_on)
+htf_1d_ema50 = request.security(syminfo.tickerid, "D", ta.ema(close, 50)[1], lookahead=barmerge.lookahead_on)
+htf_1w_close = request.security(syminfo.tickerid, "W", close[1], lookahead=barmerge.lookahead_on)
+htf_1w_ema21 = request.security(syminfo.tickerid, "W", ta.ema(close, 21)[1], lookahead=barmerge.lookahead_on)
+bull_1d = nz(htf_1d_close, close) > nz(htf_1d_ema50, ema50)
+bull_1w = nz(htf_1w_close, close) > nz(htf_1w_ema21, ema21)
+
+// 3. PUANLAMA
+score = (close > ema200 ? 20.0 : 0.0) + (ema21 > ema50 ? 15.0 : 0.0) + (is_st_bull ? 20.0 : 0.0) + (rsi_val > 50 ? 15.0 : 0.0) + (macd_line > sig_line ? 15.0 : 0.0) + (mfi_val > 50 ? 15.0 : 0.0)
+st_flip_bull = st_dir < 0 and st_dir[1] > 0
+st_flip_bear = st_dir > 0 and st_dir[1] < 0
+strong_buy = st_flip_bull and score >= 65.0 and is_high_v
+normal_buy = st_flip_bull and not strong_buy
+strong_sell = st_flip_bear and score <= 35.0 and is_high_v
+normal_sell = st_flip_bear and not strong_sell
+x_under_ema9 = ta.crossunder(close, ema9)
+x_over_ema9 = ta.crossover(close, ema9)
+overbought_rev = rsi_val > 75 and x_under_ema9
+oversold_bnc = rsi_val < 25 and x_over_ema9
+
+// 4. GRAFIK
+c_aqua = color.rgb(0, 188, 212)
+c_orange = color.rgb(255, 152, 0)
+c_purple = color.rgb(156, 39, 176)
+c_green = color.rgb(0, 230, 118)
+c_red = color.rgb(255, 23, 68)
+c_gold = color.rgb(255, 214, 0)
+c_buy = color.rgb(0, 200, 83)
+c_sell = color.rgb(213, 0, 0)
+p_ema21 = plot(show_ema ? ema21 : na, "EMA 21", color=color.new(c_aqua, 30))
+p_ema50 = plot(show_ema ? ema50 : na, "EMA 50", color=color.new(c_orange, 30))
+plot(show_ema ? ema9 : na, "EMA 9", color=color.new(c_purple, 50))
+plot(show_ema ? ema200 : na, "EMA 200", color=color.new(color.white, 10), linewidth=2)
+fill(p_ema21, p_ema50, color=ema21 > ema50 ? color.new(c_green, 85) : color.new(c_red, 85), title="Trend Bulutu")
+plot(show_st ? st_val : na, "Supertrend", color=is_st_bull ? c_green : c_red, linewidth=2, style=plot.style_linebr)
+barcolor(color_bar and is_whale ? c_gold : na, title="Balina Mum Rengi")
+plotshape(is_whale, title="Balina Radari", style=shape.diamond, location=location.belowbar, color=c_gold, size=size.tiny, text="BALINA")
+plotshape(overbought_rev, title="Asiri Alim", style=shape.xcross, location=location.abovebar, color=c_orange, size=size.tiny, text="Zirve")
+plotshape(oversold_bnc, title="Asiri Satim", style=shape.xcross, location=location.belowbar, color=c_aqua, size=size.tiny, text="Dip")
+
+// AL / SAT etiketleri
+lbl_sb = show_sig and strong_buy ? label.new(bar_index, low - atr_val * 0.5, "GUCLU AL\nSkor: " + str.tostring(score, "#"), color=c_buy, textcolor=color.white, style=label.style_label_up, size=size.small) : na
+lbl_nb = show_sig and normal_buy ? label.new(bar_index, low - atr_val * 0.5, "AL", color=color.new(c_buy, 30), textcolor=color.white, style=label.style_label_up, size=size.tiny) : na
+lbl_ss = show_sig and strong_sell ? label.new(bar_index, high + atr_val * 0.5, "GUCLU SAT\nSkor: " + str.tostring(score, "#"), color=c_sell, textcolor=color.white, style=label.style_label_down, size=size.small) : na
+lbl_ns = show_sig and normal_sell ? label.new(bar_index, high + atr_val * 0.5, "SAT", color=color.new(c_sell, 30), textcolor=color.white, style=label.style_label_down, size=size.tiny) : na
+
+// 5. DESTEK / DIRENC (tek cizgi, her pivotta yeri guncellenir)
+ph = ta.pivothigh(high, pvt_len, pvt_len)
+pl = ta.pivotlow(low, pvt_len, pvt_len)
+var float ph_y = na
+var float pl_y = na
+var int ph_x = na
+var int pl_x = na
+ph_y := na(ph) ? ph_y : ph
+ph_x := na(ph) ? ph_x : bar_index - pvt_len
+pl_y := na(pl) ? pl_y : pl
+pl_x := na(pl) ? pl_x : bar_index - pvt_len
+var line res_line = line.new(bar_index, close, bar_index + 1, close, width=2, style=line.style_dashed, extend=extend.right)
+var line sup_line = line.new(bar_index, close, bar_index + 1, close, width=2, style=line.style_dashed, extend=extend.right)
+line.set_xy1(res_line, nz(ph_x, bar_index), nz(ph_y, close))
+line.set_xy2(res_line, nz(ph_x, bar_index) + 1, nz(ph_y, close))
+line.set_xy1(sup_line, nz(pl_x, bar_index), nz(pl_y, close))
+line.set_xy2(sup_line, nz(pl_x, bar_index) + 1, nz(pl_y, close))
+line.set_color(res_line, show_sr and not na(ph_y) ? color.new(c_red, 20) : color.new(c_red, 100))
+line.set_color(sup_line, show_sr and not na(pl_y) ? color.new(c_green, 20) : color.new(c_green, 100))
+
+// 6. PANEL
+table_pos = dash_pos == "Sag Ust" ? position.top_right : dash_pos == "Sag Alt" ? position.bottom_right : dash_pos == "Sol Ust" ? position.top_left : position.bottom_left
+var table dash = show_dash ? table.new(table_pos, 2, 9, bgcolor=color.new(color.rgb(19, 23, 34), 10), border_color=color.rgb(42, 46, 57), border_width=1) : na
+s_txt = str.tostring(score, "#")
+score_col = score >= 70 ? c_buy : score <= 30 ? c_sell : c_orange
+score_txt = score >= 70 ? "GUCLU BOGA (" + s_txt + ")" : score <= 30 ? "GUCLU AYI (" + s_txt + ")" : "NOTR / YATAY (" + s_txt + ")"
+trend_txt = is_st_bull and close > ema200 ? "BOGA (Yukselis)" : not is_st_bull and close < ema200 ? "AYI (Dusus)" : "KARARSIZ (Gecis)"
+trend_col = is_st_bull and close > ema200 ? c_green : not is_st_bull and close < ema200 ? c_red : c_orange
+mtf_txt = (bull_1d ? "1G: POZITIF | " : "1G: NEGATIF | ") + (bull_1w ? "1H: POZITIF" : "1H: NEGATIF")
+mtf_col = bull_1d and bull_1w ? c_green : not bull_1d and not bull_1w ? c_red : c_gold
+adx_s = str.tostring(adx_val, "#.#")
+adx_txt = adx_val > 25 ? "GUCLU (" + adx_s + ")" : "ZAYIF / TESTERE (" + adx_s + ")"
+adx_col = adx_val > 25 ? c_green : color.silver
+rsi_col = rsi_val > 70 ? c_red : rsi_val < 30 ? c_green : color.white
+rsi_txt = str.tostring(rsi_val, "#.#") + (rsi_val > 70 ? " (Asiri Alim)" : rsi_val < 30 ? " (Ucuz/Tepki)" : "")
+mfi_col = mfi_val > 60 ? c_green : mfi_val < 40 ? c_red : color.white
+vol_col = is_whale ? c_gold : is_high_v ? c_green : color.silver
+vol_txt = str.tostring(vol_ratio, "#.##") + "x " + (is_whale ? "(BALINA)" : is_high_v ? "(Canli)" : "(Normal)")
+table.cell(dash, 0, 0, "OMNI-VISION", text_color=color.white, bgcolor=color.rgb(41, 98, 255), text_size=size.small)
+table.cell(dash, 1, 0, syminfo.ticker, text_color=c_gold, bgcolor=color.rgb(41, 98, 255), text_size=size.small)
+table.cell(dash, 0, 1, "Piyasa Skoru", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 1, score_txt, text_color=color.white, bgcolor=score_col, text_size=size.small)
+table.cell(dash, 0, 2, "Mevcut Trend", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 2, trend_txt, text_color=trend_col, text_size=size.small)
+table.cell(dash, 0, 3, "Ust Zaman (MTF)", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 3, mtf_txt, text_color=mtf_col, text_size=size.small)
+table.cell(dash, 0, 4, "Trend Gucu (ADX)", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 4, adx_txt, text_color=adx_col, text_size=size.small)
+table.cell(dash, 0, 5, "Momentum (RSI)", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 5, rsi_txt, text_color=rsi_col, text_size=size.small)
+table.cell(dash, 0, 6, "Para Girisi (MFI)", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 6, str.tostring(mfi_val, "#.#"), text_color=mfi_col, text_size=size.small)
+table.cell(dash, 0, 7, "Hacim Carpani", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 7, vol_txt, text_color=vol_col, text_size=size.small)
+table.cell(dash, 0, 8, "Supertrend Stop", text_color=color.silver, text_size=size.small, text_halign=text.align_left)
+table.cell(dash, 1, 8, str.tostring(nz(st_val), format.mintick), text_color=c_aqua, text_size=size.small)
+
+// 7. ALARMLAR
+alertcondition(strong_buy, title="GUCLU AL Sinyali", message="Omni-Vision GUCLU AL Sinyali!")
+alertcondition(strong_sell, title="GUCLU SAT Sinyali", message="Omni-Vision GUCLU SAT Sinyali!")
+alertcondition(is_whale, title="Balina Hacmi", message="Anormal kurumsal hacim (Balina) tespit edildi!")
